@@ -676,7 +676,7 @@ jobs:
             "Next") REPO_URL="https://github.com/KernelSU-Next/KernelSU-Next.git"; REPO_URL2="KernelSU-Next/KernelSU-Next" ;;
             "SukiSU") REPO_URL="https://github.com/SukiSU-Ultra/SukiSU-Ultra.git"; REPO_URL2="SukiSU-Ultra/SukiSU-Ultra" ;;
             "BakaSU") REPO_URL="https://github.com/Baka-SU/BakaSU.git"; REPO_URL2="Baka-SU/BakaSU" ;;
-            "FolkSU") REPO_URL="https://github.com/LyraVoid/FolkSU.git"; REPO_URL2="LyraVoid/FolkSU" ;;
+            "FolkSU") REPO_URL="https://github.com/LyraVoid/FinaSU.git"; REPO_URL2="LyraVoid/FinaSU" ;;
           esac
 
           if [ "${{ inputs.kernelsu_variant }}" = "SukiSU" ] && [ -f "config/config" ]; then

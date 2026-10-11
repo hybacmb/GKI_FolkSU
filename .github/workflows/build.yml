@@ -618,10 +618,10 @@ jobs:
               ;;
             "FolkSU")
               echo "添加 FolkSU..."
-              git clone https://github.com/LyraVoid/FolkSU.git KernelSU
+              git clone https://github.com/LyraVoid/FinaSU.git KernelSU
               # 自动跟随 FolkSU 最新发行版（Release）：取最新（非草稿）tag 并检出；失败则回退 master
               FOLKSU_REF=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/LyraVoid/FolkSU/releases?per_page=10" 2>/dev/null \
+                "https://api.github.com/repos/LyraVoid/FinaSU/releases?per_page=10" 2>/dev/null \
                 | jq -r '[.[] | select(.draft==false)][0].tag_name // empty' 2>/dev/null || true)
               if [ -z "$FOLKSU_REF" ] || [ "$FOLKSU_REF" = "null" ]; then
                 echo "::warning::无法获取 FolkSU 最新 Release，回退到 master"
@@ -633,7 +633,7 @@ jobs:
               # 内核槽1 默认信任官方 KernelSU 证书(0x033b / c371...d2d6)，槽2 用于附加一个受信任证书。
               # 本仓库随包发布的是 FolkSU 管理器(签名证书 CN=FolkSU)，只有把槽2 指向它并标记为发布密钥，
               # 内核才会把它认定为管理器；否则刷入后没有 root 权限。
-              # 该 size/hash 取自 LyraVoid/FolkSU Release APK 的 APK Signature Scheme v2 证书，
+              # 该 size/hash 取自 LyraVoid/FinaSU Release APK 的 APK Signature Scheme v2 证书，
               # 各 release 使用同一 keystore，因此固定不变。
               FOLKSU_MANAGER_CERT_SIZE="0x02cc"
               FOLKSU_MANAGER_CERT_HASH="2d89b50aaf1db013c2b6738f973f48b62ea21a3a8d7216bfec3521065d448458"
