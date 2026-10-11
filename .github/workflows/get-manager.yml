@@ -80,19 +80,19 @@ jobs:
           elif [ "${{ inputs.kernelsu_variant }}" == "BakaSU" ]; then
             echo "This is the BakaSU variant"
             git clone https://github.com/Baka-SU/BakaSU.git KernelSU
-          elif [ "${{ inputs.kernelsu_variant }}" == "FolkSU" ]; then
-            echo "This is the FolkSU variant"
+          elif [ "${{ inputs.kernelsu_variant }}" == "FinaSU" ]; then
+            echo "This is the FinaSU variant"
             git clone https://github.com/LyraVoid/FinaSU.git KernelSU
-            # 自动跟随 FolkSU 最新发行版（Release）：取最新（非草稿）tag 并检出；失败则回退 master
-            FOLKSU_REF=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" \
+            # 自动跟随 FinaSU 最新发行版（Release）：取最新（非草稿）tag 并检出；失败则回退 master
+            FINASU_REF=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/LyraVoid/FinaSU/releases?per_page=10" 2>/dev/null \
               | jq -r '[.[] | select(.draft==false)][0].tag_name // empty' 2>/dev/null || true)
-            if [ -z "$FOLKSU_REF" ] || [ "$FOLKSU_REF" = "null" ]; then
-              echo "::warning::无法获取 FolkSU 最新 Release，回退到 master"
-              FOLKSU_REF="master"
+            if [ -z "$FINASU_REF" ] || [ "$FINASU_REF" = "null" ]; then
+              echo "::warning::无法获取 FinaSU 最新 Release，回退到 master"
+              FINASU_REF="master"
             fi
-            echo "FolkSU 自动识别最新 Release: $FOLKSU_REF"
-            git -C KernelSU checkout "$FOLKSU_REF"
+            echo "FinaSU 自动识别最新 Release: $FINASU_REF"
+            git -C KernelSU checkout "$FINASU_REF"
           elif [ "${{ inputs.kernelsu_variant }}" == "Official" ]; then
             echo "This is the Official"
             git clone https://github.com/tiann/KernelSU.git KernelSU
@@ -113,7 +113,7 @@ jobs:
             KSU_VERSION=40548
           elif [ "${{ inputs.kernelsu_variant }}" == "BakaSU" ]; then
             KSU_VERSION=$((30700 + KSU_GIT_VERSION))
-          elif [ "${{ inputs.kernelsu_variant }}" == "FolkSU" ]; then
+          elif [ "${{ inputs.kernelsu_variant }}" == "FinaSU" ]; then
             KSU_VERSION=$((30000 + KSU_GIT_VERSION))
           elif [ "${{ inputs.kernelsu_variant }}" == "Official" ]; then
             KSU_VERSION=$((20000 + KSU_GIT_VERSION))
@@ -159,9 +159,9 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ inputs.kernelsu_variant }}" == "FolkSU" ]; then
-            echo "下载 FolkSU 管理器（从 Release 选择不高于 KSU $KSU_VERSION 的最新版本）..."
-            mkdir -p "manager-artifacts/FolkSU"
+          if [ "${{ inputs.kernelsu_variant }}" == "FinaSU" ]; then
+            echo "下载 FinaSU 管理器（从 Release 选择不高于 KSU $KSU_VERSION 的最新版本）..."
+            mkdir -p "manager-artifacts/FinaSU"
             BEST_VERSION=0
             BEST_NAME=""
             BEST_URL=""
@@ -185,11 +185,11 @@ jobs:
               done < <(printf '%s' "$RELEASES" | jq -r '.[] | .assets[] | select(.name | endswith("-release.apk")) | [.name, .browser_download_url] | @tsv')
             done
             if [ -z "$BEST_URL" ]; then
-              echo "未找到版本不高于 KSU $KSU_VERSION 的 FolkSU 管理器 Release。"
+              echo "未找到版本不高于 KSU $KSU_VERSION 的 FinaSU 管理器 Release。"
               exit 1
             fi
-            echo "选择 FolkSU 管理器: $BEST_NAME (版本 $BEST_VERSION)"
-            curl -fL -o "manager-artifacts/FolkSU/$BEST_NAME" "$BEST_URL"
+            echo "选择 FinaSU 管理器: $BEST_NAME (版本 $BEST_VERSION)"
+            curl -fL -o "manager-artifacts/FinaSU/$BEST_NAME" "$BEST_URL"
             find manager-artifacts -type f -name "*.apk" -print
             exit 0
           fi

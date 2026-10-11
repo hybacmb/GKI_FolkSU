@@ -30,7 +30,7 @@ cp "$SUSFS4KSU"/kernel_patches/fs/* ./common/fs/
 cp "$SUSFS4KSU"/kernel_patches/include/linux/* ./common/include/linux/
 
 case "$KSU_VARIANT" in
-  "Official"|"FolkSU")
+  "Official"|"FinaSU")
     cd ./KernelSU
     cp "$SUSFS4KSU"/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
     patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
@@ -42,20 +42,20 @@ case "$KSU_VARIANT" in
     ;;
 esac
 
-# FolkSU: 10_enable_susfs_for_ksu.patch 与 FolkSU 的分支代码存在上下文差异，
+# FinaSU: 10_enable_susfs_for_ksu.patch 与 FinaSU 的分支代码存在上下文差异，
 # 部分 hunk 未应用（init.c / selinux_hide.c 等），这里按补丁意图完成缺失的适配：
 #   0) selinux_hide.c 回退为原始版本，恢复其依赖的基础模块，并把 SUSFS 内核补丁
 #      以 extern 引用的 6 个符号改为全局定义（与 BakaSU 的 __maybe_static 行为一致）
 #   1) 移除指向已移出编译列表模块的调用
-#   2) 恢复补丁删除、但 FolkSU 其余代码仍在使用的全局变量
+#   2) 恢复补丁删除、但 FinaSU 其余代码仍在使用的全局变量
 #   3) 移除已被补丁整体删除的 ksu_app_profile_init 调用
 #   4) 补齐头文件声明、SUSFS 初始化与新架构初始化调用
-if [ "$KSU_VARIANT" == "FolkSU" ]; then
-  FOLKSU_KSU="$KERNEL_ROOT/KernelSU/kernel"
-  FOLKSU_INIT="$FOLKSU_KSU/core/init.c"
-  FOLKSU_KSU_H="$FOLKSU_KSU/include/ksu.h"
-  if [ ! -f "$FOLKSU_INIT" ] || [ ! -f "$FOLKSU_KSU_H" ]; then
-    echo "::error::未找到 FolkSU 内核源码文件 (core/init.c / include/ksu.h)" >&2
+if [ "$KSU_VARIANT" == "FinaSU" ]; then
+  FINASU_KSU="$KERNEL_ROOT/KernelSU/kernel"
+  FINASU_INIT="$FINASU_KSU/core/init.c"
+  FINASU_KSU_H="$FINASU_KSU/include/ksu.h"
+  if [ ! -f "$FINASU_INIT" ] || [ ! -f "$FINASU_KSU_H" ]; then
+    echo "::error::未找到 FinaSU 内核源码文件 (core/init.c / include/ksu.h)" >&2
     exit 1
   fi
 
@@ -63,12 +63,12 @@ if [ "$KSU_VARIANT" == "FolkSU" ]; then
   if git -C "$KERNEL_ROOT/KernelSU" rev-parse --git-dir > /dev/null 2>&1; then
     git -C "$KERNEL_ROOT/KernelSU" checkout -- kernel/feature/selinux_hide.c
     if ! git -C "$KERNEL_ROOT/KernelSU" diff --quiet -- kernel/feature/selinux_hide.c; then
-      echo "::error::FolkSU selinux_hide.c 未能回退为原始版本" >&2
+      echo "::error::FinaSU selinux_hide.c 未能回退为原始版本" >&2
       exit 1
     fi
   fi
-  if ! grep -q 'hook/lsm_hook.o' "$FOLKSU_KSU/Kbuild"; then
-    sed -i 's|^kernelsu-objs += hook/setuid_hook.o$|kernelsu-objs += hook/setuid_hook.o\nkernelsu-objs += hook/lsm_hook.o\nkernelsu-objs += infra/symbol_resolver.o\n\nifeq ($(CONFIG_ARM64),y)\nkernelsu-objs += hook/arm64/patch_memory.o\nelse ifeq ($(CONFIG_X86_64),y)\nkernelsu-objs += hook/x86_64/patch_memory.o\nelse ifeq ($(CONFIG_RISCV),y)\nkernelsu-objs += hook/riscv64/patch_memory.o\nendif|' "$FOLKSU_KSU/Kbuild"
+  if ! grep -q 'hook/lsm_hook.o' "$FINASU_KSU/Kbuild"; then
+    sed -i 's|^kernelsu-objs += hook/setuid_hook.o$|kernelsu-objs += hook/setuid_hook.o\nkernelsu-objs += hook/lsm_hook.o\nkernelsu-objs += infra/symbol_resolver.o\n\nifeq ($(CONFIG_ARM64),y)\nkernelsu-objs += hook/arm64/patch_memory.o\nelse ifeq ($(CONFIG_X86_64),y)\nkernelsu-objs += hook/x86_64/patch_memory.o\nelse ifeq ($(CONFIG_RISCV),y)\nkernelsu-objs += hook/riscv64/patch_memory.o\nendif|' "$FINASU_KSU/Kbuild"
   fi
 
   # 0b) SUSFS 内核补丁在 security/selinux/*.c 中以 extern 引用了这些符号，需与 BakaSU 一致
@@ -80,8 +80,8 @@ if [ "$KSU_VARIANT" == "FolkSU" ]; then
   #       5.15/6.1 用不到，所以之前只在 6.6 上暴露为链接失败）：
   #       security_context_to_sid_with_policy / security_sid_to_context_with_policy /
   #       security_compute_av_user_with_policy
-  FOLKSU_SELINUX_HIDE="$FOLKSU_KSU/feature/selinux_hide.c"
-  if grep -q '^static bool ksu_selinux_hide_enabled ' "$FOLKSU_SELINUX_HIDE"; then
+  FINASU_SELINUX_HIDE="$FINASU_KSU/feature/selinux_hide.c"
+  if grep -q '^static bool ksu_selinux_hide_enabled ' "$FINASU_SELINUX_HIDE"; then
     sed -i \
       -e 's|^static bool ksu_selinux_hide_enabled |bool ksu_selinux_hide_enabled |' \
       -e 's|^static bool ksu_selinux_hide_running |bool ksu_selinux_hide_running |' \
@@ -93,7 +93,7 @@ if [ "$KSU_VARIANT" == "FolkSU" ]; then
       -e 's|^static int security_sid_to_context_with_policy|int security_sid_to_context_with_policy|' \
       -e 's|^static void security_compute_av_user_with_policy|void security_compute_av_user_with_policy|' \
       -e 's|^static void __nocfi security_compute_av_user_with_policy|void __nocfi security_compute_av_user_with_policy|' \
-      "$FOLKSU_SELINUX_HIDE"
+      "$FINASU_SELINUX_HIDE"
   fi
 
   # 0c) SUSFS 主补丁已在内核侧接管 selinuxfs：security/selinux/selinuxfs.c 把
@@ -104,8 +104,8 @@ if [ "$KSU_VARIANT" == "FolkSU" ]; then
   #     保持 false，SUSFS 内核代码里 !ksu_selinux_hide_running 的分支就会跳过伪装，
   #     表现为「隐藏 SELinux 失效」。这里按 SUSFS 设计，让 selinux_hide.c 只提供共享符号，
   #     不再安装运行时 hook。
-  if ! grep -q 'FOLKSU_SUSFS_OWNS_SELINUXFS' "$FOLKSU_SELINUX_HIDE"; then
-    python3 - "$FOLKSU_SELINUX_HIDE" <<'PYEOF'
+  if ! grep -q 'FINASU_SUSFS_OWNS_SELINUXFS' "$FINASU_SELINUX_HIDE"; then
+    python3 - "$FINASU_SELINUX_HIDE" <<'PYEOF'
 import sys
 
 path = sys.argv[1]
@@ -116,7 +116,7 @@ enable_anchor = '    selinux_write_op = find_kernel_symbol_exact("write_op");'
 assert src.count(enable_anchor) == 1, "selinux_hide enable anchor not unique"
 enable_block = (
     "#ifdef CONFIG_KSU_SUSFS\n"
-    "    /* FOLKSU_SUSFS_OWNS_SELINUXFS: SUSFS 已接管 write_op/status/setprocattr */\n"
+    "    /* FINASU_SUSFS_OWNS_SELINUXFS: SUSFS 已接管 write_op/status/setprocattr */\n"
     "#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)\n"
     "    fake_state.initialized = true;\n"
     "    fake_state.policy = backup_sepolicy;\n"
@@ -139,17 +139,17 @@ src = src.replace(init_anchor, "#ifndef CONFIG_KSU_SUSFS\n    hook_selinux_statu
 open(path, "w", encoding="utf-8").write(src)
 print("selinux_hide.c: 已按 SUSFS 归属跳过 KSU 侧运行时 hook")
 PYEOF
-    grep -n 'FOLKSU_SUSFS_OWNS_SELINUXFS' "$FOLKSU_SELINUX_HIDE"
+    grep -n 'FINASU_SUSFS_OWNS_SELINUXFS' "$FINASU_SELINUX_HIDE"
   fi
 
   # 0d) 保持 seccomp「过滤模式」（与 BakaSU 一致）：simonpunk 的 SUSFS KSU 补丁把
   #     setuid_hook.c 里的 ksu_seccomp_allow_cache(__NR_reboot) 改成了无条件 disable_seccomp()，
   #     于是管理器首页 Seccomp 状态显示“未开启”（0）。BakaSU 的做法是 >=5.10 保留过滤模式、
   #     仅把 reboot 加入 seccomp 白名单；这里改回 BakaSU 的逻辑。
-  if [ -f "$FOLKSU_KSU/hook/setuid_hook.c" ] \
-    && ! grep -q 'FOLKSU_SECCOMP_KEEP_FILTER' "$FOLKSU_KSU/hook/setuid_hook.c" \
-    && grep -q '^        disable_seccomp();$' "$FOLKSU_KSU/hook/setuid_hook.c"; then
-    python3 - "$FOLKSU_KSU/hook/setuid_hook.c" <<'PYEOF'
+  if [ -f "$FINASU_KSU/hook/setuid_hook.c" ] \
+    && ! grep -q 'FINASU_SECCOMP_KEEP_FILTER' "$FINASU_KSU/hook/setuid_hook.c" \
+    && grep -q '^        disable_seccomp();$' "$FINASU_KSU/hook/setuid_hook.c"; then
+    python3 - "$FINASU_KSU/hook/setuid_hook.c" <<'PYEOF'
 import sys
 
 path = sys.argv[1]
@@ -160,7 +160,7 @@ if count == 0:
     print("setuid_hook.c: 未发现无条件 disable_seccomp()，跳过")
     sys.exit(0)
 repl = (
-    "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0) /* FOLKSU_SECCOMP_KEEP_FILTER */\n"
+    "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0) /* FINASU_SECCOMP_KEEP_FILTER */\n"
     "        if (current->seccomp.mode == SECCOMP_MODE_FILTER && current->seccomp.filter) {\n"
     "            spin_lock_irq(&current->sighand->siglock);\n"
     "            ksu_seccomp_allow_cache(current->seccomp.filter, __NR_reboot);\n"
@@ -174,7 +174,7 @@ src = src.replace(needle, repl)
 open(path, "w", encoding="utf-8").write(src)
 print("setuid_hook.c: 已将 %d 处 disable_seccomp() 改回 BakaSU 的 seccomp 白名单/过滤模式" % count)
 PYEOF
-    grep -n 'FOLKSU_SECCOMP_KEEP_FILTER\|ksu_seccomp_allow_cache(current->seccomp.filter' "$FOLKSU_KSU/hook/setuid_hook.c"
+    grep -n 'FINASU_SECCOMP_KEEP_FILTER\|ksu_seccomp_allow_cache(current->seccomp.filter' "$FINASU_KSU/hook/setuid_hook.c"
   fi
 
   # 1) 移除已不参与编译的模块的调用（仅剩 syscall hook / syscall hook manager）
@@ -182,87 +182,87 @@ PYEOF
     -e '/^[[:space:]]*ksu_syscall_hook_init();$/d' \
     -e '/^[[:space:]]*ksu_syscall_hook_manager_init();$/d' \
     -e '/^[[:space:]]*ksu_syscall_hook_manager_exit();$/d' \
-    "$FOLKSU_INIT"
+    "$FINASU_INIT"
 
   # 1b) 补回 lsm hook 退出调用（补丁删除了它，而该模块已恢复）
-  if ! grep -q 'ksu_lsm_hook_exit();' "$FOLKSU_INIT"; then
-    sed -i 's|^[[:space:]]*ksu_selinux_hide_exit();$|    ksu_lsm_hook_exit();\n    ksu_selinux_hide_exit();|' "$FOLKSU_INIT"
+  if ! grep -q 'ksu_lsm_hook_exit();' "$FINASU_INIT"; then
+    sed -i 's|^[[:space:]]*ksu_selinux_hide_exit();$|    ksu_lsm_hook_exit();\n    ksu_selinux_hide_exit();|' "$FINASU_INIT"
   fi
 
   # 3) ksu_app_profile_init 已被补丁从 app_profile.c/h 整体删除，去掉残留调用
-  if ! grep -q 'void __init ksu_app_profile_init(' "$FOLKSU_KSU/policy/app_profile.c"; then
-    sed -i '/^[[:space:]]*ksu_app_profile_init();$/d' "$FOLKSU_INIT"
+  if ! grep -q 'void __init ksu_app_profile_init(' "$FINASU_KSU/policy/app_profile.c"; then
+    sed -i '/^[[:space:]]*ksu_app_profile_init();$/d' "$FINASU_INIT"
   fi
 
   # 2) 恢复 ksu_late_loaded / ksu_bundled（补丁从 ksu.h 与 init.c 删除，
-  #    但 FolkSU 的 dispatch / selinux_hide / ksud_integration 仍在使用）
-  if ! grep -q 'extern bool ksu_late_loaded;' "$FOLKSU_KSU_H"; then
-    sed -i 's|^extern bool ksu_no_custom_rc;$|extern bool ksu_no_custom_rc;\nextern bool ksu_late_loaded;\nextern bool ksu_bundled;|' "$FOLKSU_KSU_H"
+  #    但 FinaSU 的 dispatch / selinux_hide / ksud_integration 仍在使用）
+  if ! grep -q 'extern bool ksu_late_loaded;' "$FINASU_KSU_H"; then
+    sed -i 's|^extern bool ksu_no_custom_rc;$|extern bool ksu_no_custom_rc;\nextern bool ksu_late_loaded;\nextern bool ksu_bundled;|' "$FINASU_KSU_H"
   fi
-  if ! grep -q '^bool ksu_late_loaded;' "$FOLKSU_INIT"; then
-    sed -i 's|^struct cred \*ksu_cred;$|struct cred *ksu_cred;\n\nbool ksu_late_loaded;\n\n#ifdef MODULE\nbool ksu_bundled = false;\nmodule_param_named(bundled, ksu_bundled, bool, 0);\n#endif|' "$FOLKSU_INIT"
+  if ! grep -q '^bool ksu_late_loaded;' "$FINASU_INIT"; then
+    sed -i 's|^struct cred \*ksu_cred;$|struct cred *ksu_cred;\n\nbool ksu_late_loaded;\n\n#ifdef MODULE\nbool ksu_bundled = false;\nmodule_param_named(bundled, ksu_bundled, bool, 0);\n#endif|' "$FINASU_INIT"
   fi
 
   # 4a) 补齐新架构初始化函数的头文件声明
-  if ! grep -q '#include "feature/sucompat.h"' "$FOLKSU_INIT"; then
-    sed -i 's|^#include "feature/avc_spoof.h"$|#include "feature/avc_spoof.h"\n#include "feature/sucompat.h"\n#include "hook/setuid_hook.h"|' "$FOLKSU_INIT"
+  if ! grep -q '#include "feature/sucompat.h"' "$FINASU_INIT"; then
+    sed -i 's|^#include "feature/avc_spoof.h"$|#include "feature/avc_spoof.h"\n#include "feature/sucompat.h"\n#include "hook/setuid_hook.h"|' "$FINASU_INIT"
   fi
 
   # 4a2) 补回 lsm_hook 头文件（补丁删除了该 include，而调用已恢复）
-  if ! grep -q '#include "hook/lsm_hook.h"' "$FOLKSU_INIT"; then
-    sed -i 's|^#include "hook/setuid_hook.h"$|#include "hook/setuid_hook.h"\n#include "hook/lsm_hook.h"|' "$FOLKSU_INIT"
+  if ! grep -q '#include "hook/lsm_hook.h"' "$FINASU_INIT"; then
+    sed -i 's|^#include "hook/setuid_hook.h"$|#include "hook/setuid_hook.h"\n#include "hook/lsm_hook.h"|' "$FINASU_INIT"
   fi
 
   # 4b) SUSFS 初始化（补丁已在 init.c 顶部加入 susfs.h 头文件）
-  if ! grep -q 'susfs_init();' "$FOLKSU_INIT"; then
-    sed -i 's|^[[:space:]]*ksu_feature_init();$|#ifdef CONFIG_KSU_SUSFS\n    susfs_init();\n#endif // #ifdef CONFIG_KSU_SUSFS\n    ksu_feature_init();|' "$FOLKSU_INIT"
+  if ! grep -q 'susfs_init();' "$FINASU_INIT"; then
+    sed -i 's|^[[:space:]]*ksu_feature_init();$|#ifdef CONFIG_KSU_SUSFS\n    susfs_init();\n#endif // #ifdef CONFIG_KSU_SUSFS\n    ksu_feature_init();|' "$FINASU_INIT"
   fi
 
   # 4c) 原先由 hook/syscall_hook_manager.c 代调用的初始化，改为 init.c 直接调用
-  if ! grep -q 'ksu_sucompat_init();' "$FOLKSU_INIT"; then
-    sed -i 's|^[[:space:]]*ksu_supercalls_init();$|    ksu_supercalls_init();\n\n    ksu_sucompat_init();\n\n    ksu_setuid_hook_init();|' "$FOLKSU_INIT"
+  if ! grep -q 'ksu_sucompat_init();' "$FINASU_INIT"; then
+    sed -i 's|^[[:space:]]*ksu_supercalls_init();$|    ksu_supercalls_init();\n\n    ksu_sucompat_init();\n\n    ksu_setuid_hook_init();|' "$FINASU_INIT"
   fi
 
   # 5) 部分应用的补丁会残留少量 unused 代码（如 selinux_hide.c），
   #    GKI 的 -Werror 下放行该告警类别，避免遗留代码阻断编译
-  if ! grep -q 'Wno-error=unused-variable' "$FOLKSU_KSU/Kbuild"; then
-    cat >> "$FOLKSU_KSU/Kbuild" << 'KSU_KBUILD_EOF'
+  if ! grep -q 'Wno-error=unused-variable' "$FINASU_KSU/Kbuild"; then
+    cat >> "$FINASU_KSU/Kbuild" << 'KSU_KBUILD_EOF'
 
-# FolkSU: SUSFS 补丁部分应用后的残留代码允许 unused 类告警
+# FinaSU: SUSFS 补丁部分应用后的残留代码允许 unused 类告警
 ccflags-y += -Wno-error=unused-variable -Wno-error=unused-function -Wno-error=unused-but-set-variable -Wno-error=unused-const-variable
 KSU_KBUILD_EOF
   fi
 
   # 结果校验，防止上游代码结构变化后静默失效
-  if ! grep -q 'susfs_init();' "$FOLKSU_INIT" \
-    || ! grep -q 'ksu_sucompat_init();' "$FOLKSU_INIT" \
-    || ! grep -q 'ksu_setuid_hook_init();' "$FOLKSU_INIT" \
-    || ! grep -q 'ksu_init_symbol_resolver();' "$FOLKSU_INIT" \
-    || ! grep -q 'ksu_lsm_hook_init();' "$FOLKSU_INIT" \
-    || ! grep -q 'ksu_lsm_hook_exit();' "$FOLKSU_INIT" \
-    || ! grep -q '#include "hook/lsm_hook.h"' "$FOLKSU_INIT" \
-    || ! grep -q '^bool ksu_late_loaded;' "$FOLKSU_INIT" \
-    || ! grep -q 'extern bool ksu_late_loaded;' "$FOLKSU_KSU_H" \
-    || ! grep -q 'hook/lsm_hook.o' "$FOLKSU_KSU/Kbuild" \
-    || ! grep -q 'infra/symbol_resolver.o' "$FOLKSU_KSU/Kbuild" \
-    || ! grep -q '^bool ksu_selinux_hide_enabled ' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^bool ksu_selinux_hide_running ' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^struct selinux_state fake_state;' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^DEFINE_STATIC_KEY_FALSE(fake_status_initialize_key);' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^struct page \*fake_status = NULL;' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^void initialize_fake_status(void)$' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^int security_context_to_sid_with_policy' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^int security_sid_to_context_with_policy' "$FOLKSU_SELINUX_HIDE" \
-    || ! grep -q '^void security_compute_av_user_with_policy' "$FOLKSU_SELINUX_HIDE"; then
-    echo "::error::FolkSU 适配修复失败，代码结构可能已变化" >&2
+  if ! grep -q 'susfs_init();' "$FINASU_INIT" \
+    || ! grep -q 'ksu_sucompat_init();' "$FINASU_INIT" \
+    || ! grep -q 'ksu_setuid_hook_init();' "$FINASU_INIT" \
+    || ! grep -q 'ksu_init_symbol_resolver();' "$FINASU_INIT" \
+    || ! grep -q 'ksu_lsm_hook_init();' "$FINASU_INIT" \
+    || ! grep -q 'ksu_lsm_hook_exit();' "$FINASU_INIT" \
+    || ! grep -q '#include "hook/lsm_hook.h"' "$FINASU_INIT" \
+    || ! grep -q '^bool ksu_late_loaded;' "$FINASU_INIT" \
+    || ! grep -q 'extern bool ksu_late_loaded;' "$FINASU_KSU_H" \
+    || ! grep -q 'hook/lsm_hook.o' "$FINASU_KSU/Kbuild" \
+    || ! grep -q 'infra/symbol_resolver.o' "$FINASU_KSU/Kbuild" \
+    || ! grep -q '^bool ksu_selinux_hide_enabled ' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^bool ksu_selinux_hide_running ' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^struct selinux_state fake_state;' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^DEFINE_STATIC_KEY_FALSE(fake_status_initialize_key);' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^struct page \*fake_status = NULL;' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^void initialize_fake_status(void)$' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^int security_context_to_sid_with_policy' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^int security_sid_to_context_with_policy' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^void security_compute_av_user_with_policy' "$FINASU_SELINUX_HIDE"; then
+    echo "::error::FinaSU 适配修复失败，代码结构可能已变化" >&2
     exit 1
   fi
-  if grep -qE '^static (int|void) (__nocfi )?security_(context_to_sid_with_policy|sid_to_context_with_policy|compute_av_user_with_policy)' "$FOLKSU_SELINUX_HIDE"; then
-    echo "::error::FolkSU selinux_hide.c 的 security_*_with_policy 仍未全局化（6.6 会链接失败）" >&2
+  if grep -qE '^static (int|void) (__nocfi )?security_(context_to_sid_with_policy|sid_to_context_with_policy|compute_av_user_with_policy)' "$FINASU_SELINUX_HIDE"; then
+    echo "::error::FinaSU selinux_hide.c 的 security_*_with_policy 仍未全局化（6.6 会链接失败）" >&2
     exit 1
   fi
-  if grep -qE 'ksu_syscall_hook_init\(\)|ksu_syscall_hook_manager_(init|exit)\(\)' "$FOLKSU_INIT"; then
-    echo "::error::FolkSU init.c 仍存在指向已移除模块的调用" >&2
+  if grep -qE 'ksu_syscall_hook_init\(\)|ksu_syscall_hook_manager_(init|exit)\(\)' "$FINASU_INIT"; then
+    echo "::error::FinaSU init.c 仍存在指向已移除模块的调用" >&2
     exit 1
   fi
 fi
@@ -393,18 +393,18 @@ def sed(path, name, pat, repl):
 fs = "security/selinux/selinuxfs.c"
 # my_write_context（<6.6 用 fake_state；>=6.6 用 backup_sepolicy 的 _with_policy 解析）
 sed(fs, "ctx(<6.6)", r"(\tlength = security_context_to_sid\(&fake_state, buf, size, &sid, GFP_KERNEL\);\n\tif \(length\)\n\t\tgoto out;\n)",
-    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FOLKSU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(&selinux_state, buf, size, &tmp_sid, GFP_KERNEL);\n\t}\n")
+    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FINASU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(&selinux_state, buf, size, &tmp_sid, GFP_KERNEL);\n\t}\n")
 sed(fs, "ctx(>=6.6)", r"(\tlength = security_context_to_sid_with_policy\(backup_sepolicy, buf, size, &sid, SECSID_NULL, GFP_KERNEL\);\n\tif \(length\)\n\t\tgoto out;\n)",
-    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FOLKSU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(buf, size, &tmp_sid, GFP_KERNEL);\n\t}\n")
+    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FINASU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(buf, size, &tmp_sid, GFP_KERNEL);\n\t}\n")
 # my_write_access scon / tcon
 sed(fs, "scon(<6.6)", r"(\tlength = security_context_str_to_sid\(&fake_state, scon, &ssid, GFP_KERNEL\);\n\tif \(length\)\n\t\tgoto out;\n)",
-    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FOLKSU_SIDTAB_SYNC */\n\t\tsecurity_context_str_to_sid(&selinux_state, scon, &tmp_sid, GFP_KERNEL);\n\t}\n")
+    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FINASU_SIDTAB_SYNC */\n\t\tsecurity_context_str_to_sid(&selinux_state, scon, &tmp_sid, GFP_KERNEL);\n\t}\n")
 sed(fs, "scon(>=6.6)", r"(\tlength = security_context_to_sid_with_policy\(backup_sepolicy, scon, strlen\(scon\), &ssid, SECSID_NULL, GFP_KERNEL\);\n\tif \(length\)\n\t\tgoto out;\n)",
-    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FOLKSU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(scon, strlen(scon), &tmp_sid, GFP_KERNEL);\n\t}\n")
+    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FINASU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(scon, strlen(scon), &tmp_sid, GFP_KERNEL);\n\t}\n")
 sed(fs, "tcon(<6.6)", r"(\tlength = security_context_str_to_sid\(&fake_state, tcon, &tsid, GFP_KERNEL\);\n\tif \(length\)\n\t\tgoto out;\n)",
-    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FOLKSU_SIDTAB_SYNC */\n\t\tsecurity_context_str_to_sid(&selinux_state, tcon, &tmp_sid, GFP_KERNEL);\n\t}\n")
+    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FINASU_SIDTAB_SYNC */\n\t\tsecurity_context_str_to_sid(&selinux_state, tcon, &tmp_sid, GFP_KERNEL);\n\t}\n")
 sed(fs, "tcon(>=6.6)", r"(\tlength = security_context_to_sid_with_policy\(backup_sepolicy, tcon, strlen\(tcon\), &tsid, SECSID_NULL, GFP_KERNEL\);\n\tif \(length\)\n\t\tgoto out;\n)",
-    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FOLKSU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(tcon, strlen(tcon), &tmp_sid, GFP_KERNEL);\n\t}\n")
+    "\\1\t{\n\t\tu32 tmp_sid;\n\t\t/* FINASU_SIDTAB_SYNC */\n\t\tsecurity_context_to_sid(tcon, strlen(tcon), &tmp_sid, GFP_KERNEL);\n\t}\n")
 
 hk = "security/selinux/hooks.c"
 # 去掉无条件 SETCURRENT 检查（<6.6 带 &selinux_state；>=6.6 不带）
@@ -412,12 +412,12 @@ sed(hk, "rm_early(<6.6)", r"\terror = avc_has_perm\(&selinux_state,\n\t\t\t\t   
 sed(hk, "rm_early(>=6.6)", r"\terror = avc_has_perm\(mysid, mysid, SECCLASS_PROCESS,\n\t\t\t\t     PROCESS__SETCURRENT, NULL\);\n\n\tif \(error\)\n\t\treturn error;\n\n", "")
 # 仅在 backup 解析失败时才检查 SETCURRENT，并同步全局 sidtab
 sed(hk, "seq+sync(<6.6)", r"(\t\terror = security_context_to_sid\(&fake_state, value, size,\n\t\t\t\t\t\t&sid, GFP_KERNEL\);\n)\t\tif \(error\)\n\t\t\treturn error;\n",
-    "\\1\t\tif (error) {\n\t\t\t/* FOLKSU_SEQ: 仅当 backup 解析失败时才做 SETCURRENT 检查（KernelSU df03912f） */\n\t\t\tint perm_error = avc_has_perm(&selinux_state, mysid, mysid, SECCLASS_PROCESS, PROCESS__SETCURRENT, NULL);\n\t\t\treturn perm_error ?: error;\n\t\t}\n\t\t{\n\t\t\tu32 tmp_sid;\n\t\t\t/* FOLKSU_SIDTAB_SYNC (KernelSU #3873) */\n\t\t\tsecurity_context_to_sid(&selinux_state, value, size, &tmp_sid, GFP_KERNEL);\n\t\t}\n")
+    "\\1\t\tif (error) {\n\t\t\t/* FINASU_SEQ: 仅当 backup 解析失败时才做 SETCURRENT 检查（KernelSU df03912f） */\n\t\t\tint perm_error = avc_has_perm(&selinux_state, mysid, mysid, SECCLASS_PROCESS, PROCESS__SETCURRENT, NULL);\n\t\t\treturn perm_error ?: error;\n\t\t}\n\t\t{\n\t\t\tu32 tmp_sid;\n\t\t\t/* FINASU_SIDTAB_SYNC (KernelSU #3873) */\n\t\t\tsecurity_context_to_sid(&selinux_state, value, size, &tmp_sid, GFP_KERNEL);\n\t\t}\n")
 sed(hk, "seq+sync(>=6.6)", r"(\t\terror = security_context_to_sid_with_policy\(backup_sepolicy, str, size, &sid, SECSID_NULL, GFP_KERNEL\);\n)\t\tif \(error\)\n\t\t\treturn error;\n",
-    "\\1\t\tif (error) {\n\t\t\t/* FOLKSU_SEQ: 仅当 backup 解析失败时才做 SETCURRENT 检查（KernelSU df03912f） */\n\t\t\tint perm_error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS, PROCESS__SETCURRENT, NULL);\n\t\t\treturn perm_error ?: error;\n\t\t}\n\t\t{\n\t\t\tu32 tmp_sid;\n\t\t\t/* FOLKSU_SIDTAB_SYNC (KernelSU #3873) */\n\t\t\tsecurity_context_to_sid(str, size, &tmp_sid, GFP_KERNEL);\n\t\t}\n")
+    "\\1\t\tif (error) {\n\t\t\t/* FINASU_SEQ: 仅当 backup 解析失败时才做 SETCURRENT 检查（KernelSU df03912f） */\n\t\t\tint perm_error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS, PROCESS__SETCURRENT, NULL);\n\t\t\treturn perm_error ?: error;\n\t\t}\n\t\t{\n\t\t\tu32 tmp_sid;\n\t\t\t/* FINASU_SIDTAB_SYNC (KernelSU #3873) */\n\t\t\tsecurity_context_to_sid(str, size, &tmp_sid, GFP_KERNEL);\n\t\t}\n")
 PYEOF
-  grep -n 'FOLKSU_SIDTAB_SYNC' security/selinux/selinuxfs.c | head
-  grep -n 'FOLKSU_SIDTAB_SYNC\|FOLKSU_SEQ' security/selinux/hooks.c | head
+  grep -n 'FINASU_SIDTAB_SYNC' security/selinux/selinuxfs.c | head
+  grep -n 'FINASU_SIDTAB_SYNC\|FINASU_SEQ' security/selinux/hooks.c | head
 else
   echo "::warning::未找到 SUSFS 的 my_write_context/my_setprocattr，跳过 SELinux 侧信道移植"
 fi
@@ -427,7 +427,7 @@ fi
 # /storage/emulated 这类 FUSE 路径（-ENOENT），于是规则加不进去、路径隐藏失效。
 # 这里加回退：解析失败时自动改走 LOOP 机制（内核 workqueue 在 init 命名空间稍后解析并打标记）。
 if [ -f fs/susfs.c ] && grep -qF 'void susfs_add_sus_path(void __user **user_info)' fs/susfs.c \
-  && ! grep -qF 'FOLKSU_SUS_PATH_LOOP_FALLBACK' fs/susfs.c; then
+  && ! grep -qF 'FINASU_SUS_PATH_LOOP_FALLBACK' fs/susfs.c; then
   python3 - <<'PYEOF'
 p = "fs/susfs.c"
 s = open(p, encoding="utf-8", errors="surrogateescape").read()
@@ -453,7 +453,7 @@ else:
             "\tinfo.err = kern_path(info.target_pathname, LOOKUP_FOLLOW, &path);\n"
             "\tif (info.err) {\n"
             "\t\tSUSFS_LOGE(\"failed opening '%s' in current ns, fallback to sus_path_loop\\n\", info.target_pathname);\n"
-            "\t\t/* FOLKSU_SUS_PATH_LOOP_FALLBACK: 调用方命名空间解析不到（常见于 /storage/emulated 等 FUSE 路径）时，\n"
+            "\t\t/* FINASU_SUS_PATH_LOOP_FALLBACK: 调用方命名空间解析不到（常见于 /storage/emulated 等 FUSE 路径）时，\n"
             "\t\t   退回 LOOP 机制，交由内核 workqueue 在 init 命名空间稍后解析并重新打标记 */\n"
             "\t\tsusfs_add_sus_path_loop(user_info);\n"
             "\t\treturn;\n"
@@ -464,7 +464,7 @@ else:
         open(p, "w", encoding="utf-8", errors="surrogateescape").write(s.replace(old2, new2, 1))
         print("fs/susfs.c: 已加 SUSFS 路径隐藏 LOOP 回退")
 PYEOF
-  grep -n 'FOLKSU_SUS_PATH_LOOP_FALLBACK' fs/susfs.c | head
+  grep -n 'FINASU_SUS_PATH_LOOP_FALLBACK' fs/susfs.c | head
 else
   echo "::warning::未找到 fs/susfs.c 的 susfs_add_sus_path，跳过路径隐藏回退"
 fi
