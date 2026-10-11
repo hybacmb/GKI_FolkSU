@@ -75,6 +75,11 @@ on:
         required: true
         type: boolean
         default: false
+      a17_compat:
+        description: "启用 支持Android17系统"
+        required: false
+        type: boolean
+        default: false
       use_bbg:
         description: "启用 BBG 防格机"
         required: true
@@ -124,6 +129,9 @@ on:
         default: "Sun Dec 01 08:10:00 UTC 2024"
       use_zram:
         required: true
+        type: boolean
+      a17_compat:
+        required: false
         type: boolean
       use_bbg:
         required: true
@@ -225,6 +233,7 @@ jobs:
       version: ${{ inputs.version || '' }}
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
+      a17_compat: ${{ inputs.a17_compat }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       use_rekernel: ${{ inputs.use_rekernel || false }}

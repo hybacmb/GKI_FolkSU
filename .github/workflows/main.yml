@@ -113,6 +113,11 @@ on:
         description: "启用 ZRAM 增强算法"
         type: boolean
         default: false
+      a17_compat:
+        description: "启用 支持Android17系统"
+        required: false
+        type: boolean
+        default: false
       use_bbg:
         description: "启用 BBG 防格机"
         type: boolean
@@ -155,6 +160,7 @@ jobs:
       version: ${{ inputs.version }}
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
+      a17_compat: ${{ inputs.a17_compat }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       use_rekernel: ${{ inputs.use_rekernel }}
@@ -177,6 +183,7 @@ jobs:
       version: ${{ inputs.version }}
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
+      a17_compat: ${{ inputs.a17_compat }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       use_rekernel: ${{ inputs.use_rekernel }}
@@ -199,6 +206,7 @@ jobs:
       version: ${{ inputs.version }}
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
+      a17_compat: ${{ inputs.a17_compat }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       use_rekernel: ${{ inputs.use_rekernel }}
@@ -221,6 +229,7 @@ jobs:
       version: ${{ inputs.version }}
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
+      a17_compat: ${{ inputs.a17_compat }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       use_rekernel: ${{ inputs.use_rekernel }}
@@ -243,6 +252,7 @@ jobs:
       version: ${{ inputs.version }}
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
+      a17_compat: ${{ inputs.a17_compat }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       use_rekernel: ${{ inputs.use_rekernel }}
